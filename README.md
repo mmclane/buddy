@@ -14,4 +14,4 @@ TODO Items:
 - [ ] Write the README
 
 
-[![Example]](https://raw.githubusercontent.com/mclanem/buddy/main/buddy-2024-07-31_14.29.24.mp4)
+[![Example]](buddy-2024-07-31_14.29.24.mp4)
