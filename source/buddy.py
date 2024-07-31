@@ -1,4 +1,11 @@
-from langchain_aws import BedrockLLM
+# from langchain_aws import BedrockLLM
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
+from langchain_core.output_parsers import StrOutputParser
+from langchain_aws import ChatBedrock
+from langchain_aws import AmazonKnowledgeBasesRetriever
+
+
 import boto3
 # from boto3 import Session
 from botocore.exceptions import BotoCoreError, ClientError
@@ -14,6 +21,27 @@ import json
 os.environ["AWS_PROFILE"] = "hackathon"
 audioOutputFile = "output.mp3"
 
+### Bedrock Setup
+modelID = "anthropic.claude-v2"
+bedrock_runtime = boto3.client(
+    service_name="bedrock-runtime",
+    region_name="us-east-1",
+)
+model_kwargs =  { 
+    "max_tokens": 2048,
+    "temperature": 0.9,
+    "top_k": 250,
+    "top_p": 1,
+    "stop_sequences": ["\n\nHuman"],
+}
+# llm = BedrockLLM(model_id=modelID, model_kwargs={"max_tokens_to_sample": 2000,"temperature":0.9})
+llm = ChatBedrock(client=bedrock_runtime, model_id=modelID, model_kwargs=model_kwargs)
+bedrock_config = {
+  'kb_id': 'ISZGKBFX00',
+  'numberOfResults': '4'
+}
+
+### Polly Setup
 polly = boto3.client('polly')
 polly_config = {
   'engine': 'neural',
@@ -60,12 +88,7 @@ polly_lang_codes = {
   'Welsh': 'cy-GB'
 }
 
-modelID = "anthropic.claude-v2"
-llm = BedrockLLM(model_id=modelID, model_kwargs={"max_tokens_to_sample": 2000,"temperature":0.9})
-bedrock_config = {
-  'kb_id': 'ISZGKBFX00'
-}
-
+### Animation Setup
 lips = {
     "p": {"name": "./source/media/lips_m.png"},
     "t": {"name": "./source/media/lips_c.png"},
@@ -106,10 +129,40 @@ toon_media = {
     "sil": {"name": "./source/media/toon_sil.png"},
 }
 
+def chatbot(personality, language, freeform_text):
+  c="{context}"
+  q="{question}"
+  template  = f'''You are {personality}. You speak in {language}.
+  Answer the question based only on the following context:
+  {c}
 
-def chatbot(personality, language,freeform_text):
-    input  = f"You are {personality}. You are in {language}.\n\n{freeform_text}"
-    return llm.invoke(input)
+  Question: {q}'''
+  
+  # template = '''Answer the question based only on the following context:
+  # {context}
+
+  # Question: {question}'''
+  
+  prompt = ChatPromptTemplate.from_template(template)
+
+  # Amazon Bedrock - KnowledgeBase Retriever 
+  retriever = AmazonKnowledgeBasesRetriever(
+      knowledge_base_id=bedrock_config['kb_id'],
+      retrieval_config={"vectorSearchConfiguration": {"numberOfResults": bedrock_config['numberOfResults']}},
+  )
+  
+  chain = (
+    RunnableParallel({"context": retriever, "question": RunnablePassthrough()})
+    .assign(response = prompt | llm | StrOutputParser())
+    .pick(["response", "context"])
+  )
+  result = chain.invoke(freeform_text)
+  response = result['response']
+  context = result['context']
+  
+  return response, context
+  # input  = f"You are {personality}. You are in {language}.\n\n{freeform_text}"
+  # return llm.invoke(input)
     
 def create_mp3(text, filename, language):
     try:
@@ -160,20 +213,21 @@ def speak(text, language):
   st.markdown(audio_html, unsafe_allow_html=True)
 
 def animate(viseme, images):
-    print('animating')
+    # print('animating')
     prev_time = 0
     for viseme in visemes:
         t = (viseme['time'] - prev_time)/ 1000
         prev_time = viseme['time']
         time.sleep(t)
         face.image(images[viseme['value']]['name'], use_column_width=True)
-        print(f"Viseme: {viseme['value']}, Duration: {t}")
+        # print(f"Viseme: {viseme['value']}, Duration: {t}")
         
     face.image(images['sil']['name'], use_column_width=True)
 
 if __name__ == "__main__":
   st.title("Buddy Chatbot")
   mute = st.sidebar.checkbox("Mute", value=True) # TODO: Change back to True
+  # showContext = st.sidebar.checkbox("Show Context", value=False)
   if mute:
     bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=False, disabled=True) # TODO: change value back to False
   else:
@@ -189,8 +243,11 @@ if __name__ == "__main__":
     max_chars=100)
 
   if freeform_text:
-    response = chatbot(personality,language,freeform_text)
-    create_text_card(response, title="{}'s response".format(personality))
+    response, context = chatbot(personality,language,freeform_text)
+    create_text_card(response, title="Buddy's response")
+    # if showContext:
+    #   create_text_card(context, title="Buddy's context")
+
     if not mute:
         visemes = get_visemes(response, language)
         speak(response, language)
