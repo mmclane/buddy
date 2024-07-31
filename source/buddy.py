@@ -9,6 +9,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from contextlib import closing
 import os
 import sys
+import logging
 import streamlit as st
 # from audio_recorder_streamlit import audio_recorder # This is used to record audio from the user
 import base64
@@ -17,11 +18,15 @@ import json
 
 ### High level configuration
 os.environ["AWS_PROFILE"] = "hackathon"
-audioOutputFile = "output.mp3"
+audioOutputFile = "./temp/output.mp3"
 phrases_to_remove = [
   "Based on the context provided,",
   "Based on the provided context,"
 ]
+### Logging setup
+debugoutput = True
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+log = logging.getLogger('buddy')
 
 ### Bedrock Setup
 modelID = "anthropic.claude-v2"
@@ -43,7 +48,7 @@ llm = ChatBedrock(client=bedrock, model_id=modelID, model_kwargs=model_kwargs)
 bedrock_config = {
   'kb_id': 'ISZGKBFX00',
   'numberOfResults': '6',
-  'personality': 'A friendly and excited camp director',
+  'personality': 'A friendly and excited camp counselor',
 }
 
 ### Polly Setup
@@ -170,11 +175,13 @@ def chatbot(personality, language, freeform_text):
   return response, context
 
 def create_mp3(text, filename, language):
+    log.info(f"Creating mp3 for: {text}")
     try:
         # Request speech synthesis
         response = polly.synthesize_speech(Engine=polly_config['engine'], LanguageCode=polly_lang_codes[language], VoiceId=polly_config['voiceid'], OutputFormat='mp3', Text=text)
     except (BotoCoreError, ClientError) as error:
         # The service returned an error, exit gracefully
+        log.info(error)
         print(error)
         sys.exit(-1)
 
@@ -186,20 +193,27 @@ def create_mp3(text, filename, language):
             with open(output, "wb") as file:
               file.write(stream.read())
           except IOError as error:
+            log.info(error)
             print(error)
             sys.exit(-1)
     else:
-      print("Could not stream audio")
-      sys.exit(-1)   
+      log.info("Could not stream audio")
+      sys.exit(-1)
+    
+    if os.path.exists(output):
+      log.info(f"Audio file created: {output}")
+      
 
 def create_text_card(text, title="Response"):
   st.markdown(f"### {title}")
   st.write(f"> {text}")
 
 def get_visemes(text, language):
+    log.info(f"Getting visemes from polly")
     try:
         response = polly.synthesize_speech(Engine=polly_config['engine'], LanguageCode=polly_lang_codes[language], VoiceId=polly_config['voiceid'], OutputFormat='json', Text=text, SpeechMarkTypes=['viseme'])
     except (BotoCoreError, ClientError) as error:
+        log.info(error)
         print(error)
         sys.exit(-1)
     visemes = [
@@ -207,18 +221,24 @@ def get_visemes(text, language):
                 for v in response["AudioStream"].read().decode().split()
                 if v
             ]
+    log.info(f"Visemes: {visemes}")
     return visemes
 
 def speak(text, language):
+  log.info(f"Speaking in {language}")
+
   create_mp3(text, audioOutputFile, language)
+
   with open(audioOutputFile, 'rb') as audio_file:
     audio_bytes = audio_file.read()
   base64_audio = base64.b64encode(audio_bytes).decode("utf-8")
   audio_html = f'<audio src="data:audio/mp3;base64,{base64_audio}" controls autoplay>'
+  log.info("create audio card")
+
   st.markdown(audio_html, unsafe_allow_html=True)
 
 def animate(viseme, images):
-    # print('animating')
+    log.info('animating')
     prev_time = 0
     for viseme in visemes:
         t = (viseme['time'] - prev_time)/ 1000
@@ -247,8 +267,6 @@ if __name__ == "__main__":
   if freeform_text:
     response, context = chatbot(bedrock_config['personality'],language,freeform_text)
     create_text_card(response, title="Buddy's response")
-    # if showContext:
-    #   create_text_card(context, title="Buddy's context")
 
     if not mute:
         visemes = get_visemes(response, language)

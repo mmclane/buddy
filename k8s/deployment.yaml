@@ -39,9 +39,13 @@ spec:
         volumeMounts:
         - name: awsconfig
           mountPath: /home/nonroot/.aws
+        - name: scratch
+          mountPath: /buddy/temp
       restartPolicy: Always
       volumes:
       - name: awsconfig
         secret:
           secretName: buddy-secrets
           optional: false
+      - name: scratch
+        emptyDir: {}
