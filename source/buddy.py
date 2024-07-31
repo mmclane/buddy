@@ -52,7 +52,7 @@ llm = ChatBedrock(client=bedrock, model_id=modelID, model_kwargs=model_kwargs)
 bedrock_config = {
   'kb_id': 'ISZGKBFX00',
   'numberOfResults': '6',
-  'personality': 'A friendly and excited camp counselor',
+  'personality': 'A friendly and excited camp counselor trying to help uses of Campdoc',
 }
 
 ### Polly Setup
@@ -273,6 +273,7 @@ if __name__ == "__main__":
         response, context = chatbot(bedrock_config['personality'],language,transcript)
         create_text_card(response, title="Buddy's response")
         if not mute:
+          st.write("Let me say that for you...")
           visemes = get_visemes(response, language)
           speak(response, language)
           if bringAlive:
@@ -286,10 +287,12 @@ if __name__ == "__main__":
 
 
     if freeform_text:
+      create_text_card(freeform_text, title="You asked")
       response, context = chatbot(bedrock_config['personality'],language,freeform_text)
       create_text_card(response, title="Buddy's response")
 
       if not mute:
+          st.write("Let me say that for you...")
           visemes = get_visemes(response, language)
           speak(response, language)
           if bringAlive:
