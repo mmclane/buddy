@@ -12,3 +12,6 @@ TODO Items:
 
 - [ ] Cleanup commented code
 - [ ] Write the README
+
+
+[![Example](buddy-2024-07-31_14.29.24.mp4)](buddy-2024-07-31_14.29.24.mp4)
