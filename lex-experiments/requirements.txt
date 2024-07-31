@@ -1,9 +1,0 @@
-boto3
-langchain-community
-langchain-core
-# langchain
-streamlit
-audio-recorder-streamlit
-langchain-aws
-moviepy
-pillow
