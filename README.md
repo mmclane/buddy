@@ -7,7 +7,7 @@ TODO Items:
 - [X] Specify language to polly.
 - [X] Toon images instead of lips
 - [X] Push to github and share code with Charles
-- [ ] Get Audio working from K8s
+- [X] Get Audio working from K8s
 - [ ] Speech to text
 
 - [ ] Cleanup commented code

@@ -11,14 +11,18 @@ import os
 import sys
 import logging
 import streamlit as st
-# from audio_recorder_streamlit import audio_recorder # This is used to record audio from the user
+from audio_recorder_streamlit import audio_recorder
 import base64
 import time
 import json
 
+import speech_recognition as sr
+from pydub import AudioSegment
+
 ### High level configuration
 os.environ["AWS_PROFILE"] = "hackathon"
 audioOutputFile = "./temp/output.mp3"
+audioInputFile = "./temp/input.wav"
 phrases_to_remove = [
   "Based on the context provided,",
   "Based on the provided context,"
@@ -99,26 +103,6 @@ polly_lang_codes = {
 }
 
 ### Animation Setup
-lips = {
-    "p": {"name": "./media/lips_m.png"},
-    "t": {"name": "./media/lips_c.png"},
-    "S": {"name": "./media/lips_ch.png"},
-    "T": {"name": "./media/lips_th.png"},
-    "f": {"name": "./media/lips_f.png"},
-    "k": {"name": "./media/lips_c.png"},
-    "i": {"name": "./media/lips_e.png"},
-    "r": {"name": "./media/lips_r.png"},
-    "s": {"name": "./media/lips_c.png"},
-    "u": {"name": "./media/lips_w.png"},
-    "@": {"name": "./media/lips_u.png"},
-    "a": {"name": "./media/lips_a.png"},
-    "e": {"name": "./media/lips_a.png"},
-    "E": {"name": "./media/lips_u.png"},
-    "o": {"name": "./media/lips_o.png"},
-    "O": {"name": "./media/lips_u.png"},
-    "sil": {"name": "./media/lips_sil.png"},
-}
-
 toon_media = {
     "p": {"name": "./media/toon_m.png"},
     "t": {"name": "./media/toon_c.png"},
@@ -249,9 +233,26 @@ def animate(viseme, images):
         
     face.image(images['default']['name'], use_column_width=True)
 
+def get_transcription(audio):
+  log.info("Getting transcription")
+  try:
+    # use the audio file as the audio source                                        
+    r = sr.Recognizer()
+    with sr.AudioFile(audio) as source:
+        audio = r.record(source)  # read the entire audio file                  
+        transcription = r.recognize_google(audio)
+
+  except (BotoCoreError, ClientError) as error:
+      log.info(error)
+      print(error)
+      sys.exit(-1)
+  
+  return transcription  
+
 if __name__ == "__main__":
   st.title("Buddy Chatbot")
   mute = st.sidebar.checkbox("Mute", value=True)
+  transcribe = st.sidebar.checkbox("Transcribe", value=False)
   if mute:
     bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=False)
   else:
@@ -260,17 +261,37 @@ if __name__ == "__main__":
   face = st.sidebar.empty()
   face.image(toon_media['default']['name'], use_column_width=True)
 
-  if language:
-    freeform_text = st.sidebar.text_area(label="what is your question?",
-    max_chars=100)
+  if transcribe:
+    st.write("Click on the microphone to start recording")
+    audio_bytes = audio_recorder()
+    if audio_bytes:
+        with open(audioInputFile, 'wb') as af:
+          af.write(audio_bytes)
+        transcript = get_transcription(audioInputFile)
+        st.write(transcript)
+        st.audio(audio_bytes, format="audio/wav")
+        response, context = chatbot(bedrock_config['personality'],language,transcript)
+        create_text_card(response, title="Buddy's response")
+        if not mute:
+          visemes = get_visemes(response, language)
+          speak(response, language)
+          if bringAlive:
+              face.image(toon_media['default']['name'], use_column_width=True)
+              animate(visemes, toon_media)
 
-  if freeform_text:
-    response, context = chatbot(bedrock_config['personality'],language,freeform_text)
-    create_text_card(response, title="Buddy's response")
+  else:
+    if language:
+      freeform_text = st.sidebar.text_area(label="what is your question?",
+      max_chars=100)
 
-    if not mute:
-        visemes = get_visemes(response, language)
-        speak(response, language)
-        if bringAlive:
-            face.image(toon_media['default']['name'], use_column_width=True)
-            animate(visemes, toon_media)
+
+    if freeform_text:
+      response, context = chatbot(bedrock_config['personality'],language,freeform_text)
+      create_text_card(response, title="Buddy's response")
+
+      if not mute:
+          visemes = get_visemes(response, language)
+          speak(response, language)
+          if bringAlive:
+              face.image(toon_media['default']['name'], use_column_width=True)
+              animate(visemes, toon_media)
