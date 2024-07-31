@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: buddy
+  name: buddy
+  namespace: m3test
+  annotations:
+    keel.sh/policy: force
+    keel.sh/match-tag: "true"
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: "@every 1m"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buddy
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: buddy
+    spec:
+      containers:
+      - image: repos.doc.network/m3test/buddy:latest
+        imagePullPolicy: Always
+        name: buddy
+        ports:
+        - containerPort: 8501
+          protocol: TCP
+        resources:
+          limits:
+            memory: 2Gi
+            cpu: 800m
+          requests:
+            cpu: 300m
+            memory: 1Gi
+        volumeMounts:
+        - name: awsconfig
+          mountPath: /home/nonroot/.aws
+      restartPolicy: Always
+      volumes:
+      - name: awsconfig
+        secret:
+          secretName: buddy-secrets
+          optional: false

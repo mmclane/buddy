@@ -1,16 +1,14 @@
-# from langchain_aws import BedrockLLM
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_core.output_parsers import StrOutputParser
 from langchain_aws import ChatBedrock
 from langchain_aws import AmazonKnowledgeBasesRetriever
 
-
 import boto3
-# from boto3 import Session
 from botocore.exceptions import BotoCoreError, ClientError
 from contextlib import closing
 import os
+import sys
 import streamlit as st
 # from audio_recorder_streamlit import audio_recorder # This is used to record audio from the user
 import base64
@@ -20,13 +18,19 @@ import json
 ### High level configuration
 os.environ["AWS_PROFILE"] = "hackathon"
 audioOutputFile = "output.mp3"
+phrases_to_remove = [
+  "Based on the context provided,",
+  "Based on the provided context,"
+]
 
 ### Bedrock Setup
 modelID = "anthropic.claude-v2"
-bedrock_runtime = boto3.client(
+
+bedrock = boto3.client(
     service_name="bedrock-runtime",
-    region_name="us-east-1",
+    region_name="us-east-1"
 )
+
 model_kwargs =  { 
     "max_tokens": 2048,
     "temperature": 0.9,
@@ -35,10 +39,11 @@ model_kwargs =  {
     "stop_sequences": ["\n\nHuman"],
 }
 # llm = BedrockLLM(model_id=modelID, model_kwargs={"max_tokens_to_sample": 2000,"temperature":0.9})
-llm = ChatBedrock(client=bedrock_runtime, model_id=modelID, model_kwargs=model_kwargs)
+llm = ChatBedrock(client=bedrock, model_id=modelID, model_kwargs=model_kwargs)
 bedrock_config = {
   'kb_id': 'ISZGKBFX00',
-  'numberOfResults': '4'
+  'numberOfResults': '1',
+  'personality': 'A friendly and excited camp director',
 }
 
 ### Polly Setup
@@ -90,43 +95,43 @@ polly_lang_codes = {
 
 ### Animation Setup
 lips = {
-    "p": {"name": "./source/media/lips_m.png"},
-    "t": {"name": "./source/media/lips_c.png"},
-    "S": {"name": "./source/media/lips_ch.png"},
-    "T": {"name": "./source/media/lips_th.png"},
-    "f": {"name": "./source/media/lips_f.png"},
-    "k": {"name": "./source/media/lips_c.png"},
-    "i": {"name": "./source/media/lips_e.png"},
-    "r": {"name": "./source/media/lips_r.png"},
-    "s": {"name": "./source/media/lips_c.png"},
-    "u": {"name": "./source/media/lips_w.png"},
-    "@": {"name": "./source/media/lips_u.png"},
-    "a": {"name": "./source/media/lips_a.png"},
-    "e": {"name": "./source/media/lips_a.png"},
-    "E": {"name": "./source/media/lips_u.png"},
-    "o": {"name": "./source/media/lips_o.png"},
-    "O": {"name": "./source/media/lips_u.png"},
-    "sil": {"name": "./source/media/lips_sil.png"},
+    "p": {"name": "./media/lips_m.png"},
+    "t": {"name": "./media/lips_c.png"},
+    "S": {"name": "./media/lips_ch.png"},
+    "T": {"name": "./media/lips_th.png"},
+    "f": {"name": "./media/lips_f.png"},
+    "k": {"name": "./media/lips_c.png"},
+    "i": {"name": "./media/lips_e.png"},
+    "r": {"name": "./media/lips_r.png"},
+    "s": {"name": "./media/lips_c.png"},
+    "u": {"name": "./media/lips_w.png"},
+    "@": {"name": "./media/lips_u.png"},
+    "a": {"name": "./media/lips_a.png"},
+    "e": {"name": "./media/lips_a.png"},
+    "E": {"name": "./media/lips_u.png"},
+    "o": {"name": "./media/lips_o.png"},
+    "O": {"name": "./media/lips_u.png"},
+    "sil": {"name": "./media/lips_sil.png"},
 }
 
 toon_media = {
-    "p": {"name": "./source/media/toon_m.png"},
-    "t": {"name": "./source/media/toon_c.png"},
-    "S": {"name": "./source/media/toon_ch.png"},
-    "T": {"name": "./source/media/toon_th.png"},
-    "f": {"name": "./source/media/toon_f.png"},
-    "k": {"name": "./source/media/toon_c.png"},
-    "i": {"name": "./source/media/toon_e.png"},
-    "r": {"name": "./source/media/toon_r.png"},
-    "s": {"name": "./source/media/toon_c.png"},
-    "u": {"name": "./source/media/toon_w.png"},
-    "@": {"name": "./source/media/toon_u.png"},
-    "a": {"name": "./source/media/toon_a.png"},
-    "e": {"name": "./source/media/toon_a.png"},
-    "E": {"name": "./source/media/toon_u.png"},
-    "o": {"name": "./source/media/toon_o.png"},
-    "O": {"name": "./source/media/toon_u.png"},
-    "sil": {"name": "./source/media/toon_sil.png"},
+    "p": {"name": "./media/toon_m.png"},
+    "t": {"name": "./media/toon_c.png"},
+    "S": {"name": "./media/toon_ch.png"},
+    "T": {"name": "./media/toon_th.png"},
+    "f": {"name": "./media/toon_f.png"},
+    "k": {"name": "./media/toon_c.png"},
+    "i": {"name": "./media/toon_e.png"},
+    "r": {"name": "./media/toon_r.png"},
+    "s": {"name": "./media/toon_c.png"},
+    "u": {"name": "./media/toon_w.png"},
+    "@": {"name": "./media/toon_u.png"},
+    "a": {"name": "./media/toon_a.png"},
+    "e": {"name": "./media/toon_a.png"},
+    "E": {"name": "./media/toon_u.png"},
+    "o": {"name": "./media/toon_o.png"},
+    "O": {"name": "./media/toon_u.png"},
+    "sil": {"name": "./media/toon_sil.png"},
 }
 
 def chatbot(personality, language, freeform_text):
@@ -137,11 +142,6 @@ def chatbot(personality, language, freeform_text):
   {c}
 
   Question: {q}'''
-  
-  # template = '''Answer the question based only on the following context:
-  # {context}
-
-  # Question: {question}'''
   
   prompt = ChatPromptTemplate.from_template(template)
 
@@ -156,14 +156,18 @@ def chatbot(personality, language, freeform_text):
     .assign(response = prompt | llm | StrOutputParser())
     .pick(["response", "context"])
   )
+
   result = chain.invoke(freeform_text)
   response = result['response']
-  context = result['context']
   
+  # If any phrases to remove are in the response, remove them
+  for phrase in phrases_to_remove:
+    response = response.replace(phrase, "")
+  response = response.strip().capitalize()
+  
+  context = result['context']
   return response, context
-  # input  = f"You are {personality}. You are in {language}.\n\n{freeform_text}"
-  # return llm.invoke(input)
-    
+
 def create_mp3(text, filename, language):
     try:
         # Request speech synthesis
@@ -233,17 +237,16 @@ if __name__ == "__main__":
   else:
     bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=False) # TODO: change value back to False
   language = st.sidebar.selectbox("Language", polly_lang_codes.keys(), index=13)
-  personality = st.sidebar.selectbox("Personality", ["Bugs Bunny", "Deadpool", "Marvin the depressed robot"])
   face = st.sidebar.empty()
-  face.image('./source/media/toon.png', use_column_width=True)
-#   face.image('./source/media/lips_sil.png', use_column_width=True)
+  face.image('./media/toon.png', use_column_width=True)
+#   face.image('./media/lips_sil.png', use_column_width=True)
 
   if language:
     freeform_text = st.sidebar.text_area(label="what is your question?",
     max_chars=100)
 
   if freeform_text:
-    response, context = chatbot(personality,language,freeform_text)
+    response, context = chatbot(bedrock_config['personality'],language,freeform_text)
     create_text_card(response, title="Buddy's response")
     # if showContext:
     #   create_text_card(context, title="Buddy's context")
