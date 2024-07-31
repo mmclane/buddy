@@ -38,11 +38,11 @@ model_kwargs =  {
     "top_p": 1,
     "stop_sequences": ["\n\nHuman"],
 }
-# llm = BedrockLLM(model_id=modelID, model_kwargs={"max_tokens_to_sample": 2000,"temperature":0.9})
+
 llm = ChatBedrock(client=bedrock, model_id=modelID, model_kwargs=model_kwargs)
 bedrock_config = {
   'kb_id': 'ISZGKBFX00',
-  'numberOfResults': '1',
+  'numberOfResults': '6',
   'personality': 'A friendly and excited camp director',
 }
 
@@ -132,6 +132,7 @@ toon_media = {
     "o": {"name": "./media/toon_o.png"},
     "O": {"name": "./media/toon_u.png"},
     "sil": {"name": "./media/toon_sil.png"},
+    "default": {"name": "./media/toon_default.png"},
 }
 
 def chatbot(personality, language, freeform_text):
@@ -226,20 +227,18 @@ def animate(viseme, images):
         face.image(images[viseme['value']]['name'], use_column_width=True)
         # print(f"Viseme: {viseme['value']}, Duration: {t}")
         
-    face.image(images['sil']['name'], use_column_width=True)
+    face.image(images['default']['name'], use_column_width=True)
 
 if __name__ == "__main__":
   st.title("Buddy Chatbot")
-  mute = st.sidebar.checkbox("Mute", value=True) # TODO: Change back to True
-  # showContext = st.sidebar.checkbox("Show Context", value=False)
+  mute = st.sidebar.checkbox("Mute", value=True)
   if mute:
-    bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=False, disabled=True) # TODO: change value back to False
+    bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=False)
   else:
-    bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=False) # TODO: change value back to False
+    bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=True)
   language = st.sidebar.selectbox("Language", polly_lang_codes.keys(), index=13)
   face = st.sidebar.empty()
-  face.image(toon_media['sil']['name'], use_column_width=True)
-#   face.image('./media/lips_sil.png', use_column_width=True)
+  face.image(toon_media['default']['name'], use_column_width=True)
 
   if language:
     freeform_text = st.sidebar.text_area(label="what is your question?",
@@ -255,5 +254,5 @@ if __name__ == "__main__":
         visemes = get_visemes(response, language)
         speak(response, language)
         if bringAlive:
-            face.image(toon_media['sil']['name'], use_column_width=True) # TODO: Change to toon
+            face.image(toon_media['default']['name'], use_column_width=True)
             animate(visemes, toon_media)
