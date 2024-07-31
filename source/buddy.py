@@ -238,7 +238,7 @@ if __name__ == "__main__":
     bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=False) # TODO: change value back to False
   language = st.sidebar.selectbox("Language", polly_lang_codes.keys(), index=13)
   face = st.sidebar.empty()
-  face.image('./media/toon.png', use_column_width=True)
+  face.image(toon_media['sil']['name'], use_column_width=True)
 #   face.image('./media/lips_sil.png', use_column_width=True)
 
   if language:
@@ -255,5 +255,5 @@ if __name__ == "__main__":
         visemes = get_visemes(response, language)
         speak(response, language)
         if bringAlive:
-            face.image(lips['sil']['name'], use_column_width=True) # TODO: Change to toon
-            animate(visemes, lips)
+            face.image(toon_media['sil']['name'], use_column_width=True) # TODO: Change to toon
+            animate(visemes, toon_media)
