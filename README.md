@@ -20,4 +20,4 @@ I have buddy running on our K8s cluster but you can also run it locally.
 
 I am not including setup instructions.  This was just a POC hackathon project, not  a real finish product.
 
-[![Buddy Demo](https://youtu.be/RgOanPb6SU8)](https://youtu.be/RgOanPb6SU8)
+[![Buddy Demo](buddy-thumbnail.png)](https://youtu.be/RgOanPb6SU8)
