@@ -251,7 +251,7 @@ def get_transcription(audio):
 
 if __name__ == "__main__":
   st.title("Buddy Chatbot")
-  mute = st.sidebar.checkbox("Mute", value=True)
+  mute = st.sidebar.checkbox("Mute", value=False)
   transcribe = st.sidebar.checkbox("Transcribe", value=False)
   if mute:
     bringAlive = st.sidebar.checkbox("Bring Buddy Alive", value=False)
